@@ -1,5 +1,6 @@
 <RCC>
-  <qresource prefix="新前缀">
-    <file>deepseek.png</file>
-  </qresource>
+    <qresource prefix="/新前缀">
+        <file>deepseek.png</file>
+        <file>file.png</file>
+    </qresource>
 </RCC>

@@ -5,20 +5,29 @@
 #include <QFileDialog>
 #include <QStandardItemModel>
 #include <deletedialog.h>
-QString key = "";
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),now_index(-1)
     , ui(new Ui::MainWindow),deep_think(false),
     all_data("回答内容\n"),have_data(false),
-    all_reasoning("思考内容\n"),have_reasoning(false)
+    all_reasoning("思考内容\n"),have_reasoning(false),file_button_bool(false)
 {
     ui->setupUi(this);
     left_model = new QStringListModel(this);
     http_mgr = new HttpMgr(this);
     ui->listView_2->setEditTriggers(QAbstractItemView::NoEditTriggers);
     ui->listView->setModel(left_model);
-    sql_mgr = new SQLMgr(this);
 
+    sql_mgr = new SQLMgr(this);
+    fl_dlg = new FileListDialog(this);
+    fl_dlg->setWindowFlag(Qt::FramelessWindowHint);
+
+    file_button = new QPushButton(this);
+    file_button->resize(30, 30);
+    file_button->move(970,470);
+    file_button->setIcon(QIcon(":/新前缀/file.png"));
+    file_button->setIconSize(file_button->size());
+    file_button->show();
 
     connect(this,&MainWindow::send_data,http_mgr,&HttpMgr::send_request);
     connect(http_mgr,&HttpMgr::newToken,this,&MainWindow::slot_read_data);
@@ -26,6 +35,10 @@ MainWindow::MainWindow(QWidget *parent)
     connect(http_mgr,&HttpMgr::newReasoningToken,this,&MainWindow::slot_read_reasoning);
     connect(ui->listView,&my_list_view::sign_delete,this,&MainWindow::slot_delete);
     connect(sql_mgr,&SQLMgr::sig_init,this,&MainWindow::slot_init);
+    connect(file_button,&QPushButton::clicked,this,&MainWindow::on_file_pushbutton_clicked);
+    connect(fl_dlg,&FileListDialog::slot_delete,this,[this](QString file_name){
+        send_file.erase(file_name);
+    });
 
     QListView* list_view = qobject_cast<QListView*>(ui->listView);
     if(list_view){
@@ -122,6 +135,10 @@ void MainWindow::dispose_json()
     {
         json_obj["model"] = "deepseek-reasoner";
     }
+    
+    // 传递文件给HttpMgr
+    http_mgr->set_files(send_file);
+    
     emit send_data(json_obj);
     ui->send_pushButton->setEnabled(false);
     ui->send_pushButton->setStyleSheet("background-color: rgb(186, 186, 186);");
@@ -134,6 +151,12 @@ void MainWindow::closeEvent(QCloseEvent*event)
     Q_UNUSED(event)
     //qDebug()<<"fuck";
     sql_mgr->save_message(left_model,history);
+}
+
+void MainWindow::resizeEvent(QResizeEvent *event)
+{
+    file_button->move(this->width()-30,this->height()-200);
+    QWidget::resizeEvent(event);
 }
 
 
@@ -155,6 +178,21 @@ void MainWindow::on_listView_clicked(const QModelIndex &index)
 {
     now_index = index.row();
     ui->listView_2->setModel(right_model[now_index]);
+}
+
+void MainWindow::on_file_pushbutton_clicked()
+{
+    if(!file_button_bool)
+    {
+        QPoint btnPos = file_button->mapToGlobal(QPoint(0-fl_dlg->width(), 0-fl_dlg->height()));
+        fl_dlg->move(btnPos);
+        fl_dlg->show();
+        file_button_bool = true;
+    }else{
+        fl_dlg->hide();
+        file_button_bool = false;
+    }
+
 }
 
 void MainWindow::slot_read_data(QString data)
@@ -210,6 +248,8 @@ void MainWindow::slot_streamFinished()
 "}");
     ui->listView->setEnabled(true);
     ui->new_dlg_pushButton->setEnabled(true);
+    send_file.clear();
+    fl_dlg->clear_all();
 }
 
 void MainWindow::on_listView_2_clicked(const QModelIndex &index)
@@ -300,8 +340,26 @@ void MainWindow::slot_init(const QStringList &title, const QStringList &message)
 }
 
 
-void MainWindow::on_lineEdit_textChanged(const QString &arg1)
+
+
+void MainWindow::on_add_file_pushButton_clicked()
 {
-   key = ui->lineEdit->text();
+    QString file_dir = QFileDialog::getOpenFileName(
+        this,  // 确保this指针有效
+        tr("打开文件"),
+        "D:/",
+        tr("所有文件 (*)")
+    );
+    QFile file(file_dir);
+    if(!file.open(QIODevice::ReadOnly))
+    {
+        QMessageBox::warning(this,"错误","文件打开失败");
+        return;
+    }
+    QByteArray file_byte = file.readAll();
+    QString file_name = (file_dir.split("/"))[file_dir.split("/").size()-1];
+
+    send_file.insert(std::make_pair(file_name,file_byte));
+    fl_dlg->add_file(file_name);
 }
 

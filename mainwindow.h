@@ -7,9 +7,11 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <httpmgr.h>
-#include <QSettings>
+#include <QPushButton>
+#include <filelistdialog.h>
+#include <map>
 QT_BEGIN_NAMESPACE
-extern QString key;
+
 namespace Ui {
 class MainWindow;
 }
@@ -31,6 +33,8 @@ private slots:
 
     void on_listView_clicked(const QModelIndex &index);
 
+    void on_file_pushbutton_clicked();
+
     void slot_read_data(QString data);
     void slot_read_reasoning(QString reasoning);
     void slot_streamFinished();
@@ -42,23 +46,32 @@ private slots:
 
     void slot_init(const QStringList& title,const QStringList& message);
 
-    void on_lineEdit_textChanged(const QString &arg1);
+
+    void on_add_file_pushButton_clicked();
 
 private:
     Ui::MainWindow *ui;
     QStringListModel*left_model;
     QVector<QStringListModel*>right_model;
     QVector<QJsonArray>history;
+    std::map<QString,QByteArray> send_file;
+
     int now_index;
     bool deep_think;
     bool have_data;
     bool have_reasoning;
     HttpMgr*http_mgr;
     void dispose_json();
+
     void closeEvent(QCloseEvent *event)override;
+    void resizeEvent(QResizeEvent *event)override;
     QString all_data;
     QString all_reasoning;
     SQLMgr *sql_mgr;
+    QPushButton*file_button;
+    FileListDialog *fl_dlg;
+
+    bool file_button_bool;
 signals:
     void send_data(QJsonObject json);
 

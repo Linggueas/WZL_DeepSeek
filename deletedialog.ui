@@ -46,7 +46,7 @@
       </font>
      </property>
      <property name="text">
-      <string>是否删除该对话</string>
+      <string>         是否删除</string>
      </property>
     </widget>
    </item>
