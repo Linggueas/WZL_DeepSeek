@@ -1,4 +1,4 @@
-QT       += core gui network sql
+QT       += core gui network sql concurrent
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -10,21 +10,32 @@ CONFIG += c++17
 
 SOURCES += \
     deletedialog.cpp \
+    filedialog.cpp \
+    filelistdialog.cpp \
+    fileviewdialog.cpp \
     httpmgr.cpp \
     main.cpp \
     mainwindow.cpp \
+    markdowndelegate.cpp \
     my_list_view.cpp \
     sqlmgr.cpp
 
 HEADERS += \
     deletedialog.h \
+    filedialog.h \
+    filelistdialog.h \
+    fileviewdialog.h \
     httpmgr.h \
     mainwindow.h \
+    markdowndelegate.h \
     my_list_view.h \
     sqlmgr.h
 
 FORMS += \
     deletedialog.ui \
+    filedialog.ui \
+    filelistdialog.ui \
+    fileviewdialog.ui \
     mainwindow.ui
 
 # Default rules for deployment.

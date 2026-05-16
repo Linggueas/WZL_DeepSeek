@@ -14,7 +14,7 @@ FileListDialog::FileListDialog(QWidget *parent)
     ui->tableWidget->setFocusPolicy(Qt::NoFocus);
     ui->tableWidget->setSelectionMode(QAbstractItemView::NoSelection);
     ui->tableWidget->setShowGrid(false);
-    ui->tableWidget->setStyleSheet("QTableWidget { border: none; background-color: white; } QTableWidget::item { border: none; }");
+    ui->tableWidget->setStyleSheet("QTableWidget { border: none; background-color: rgb(236, 236, 236); } QTableWidget::item { border: none; }");
     
     // 设置行高和列宽
     ui->tableWidget->setRowHeight(0, 119); // 与FileDialog高度匹配

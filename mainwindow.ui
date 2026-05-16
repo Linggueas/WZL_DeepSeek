@@ -54,7 +54,7 @@
       <property name="styleSheet">
        <string notr="true">QWidget#widget{background-color:#f0f2f5;}</string>
       </property>
-      <layout class="QVBoxLayout" name="verticalLayout_3" stretch="1,5">
+      <layout class="QVBoxLayout" name="verticalLayout_3" stretch="0,5">
        <property name="spacing">
         <number>0</number>
        </property>
@@ -79,13 +79,22 @@
          </property>
          <property name="styleSheet">
           <string notr="true">QPushButton{
-background-color: &quot;&quot;
+background-color: rgb(255, 255, 255);
 color:#1a1a1a;
 border:none;
 padding:10px 15px;
 text-align:left;
+border-radius:15px;
 }
-</string>
+QPushButton:hover{
+background-color: rgb(230, 240, 255);
+color: #0078d4;
+}
+QPushButton:pressed{
+background-color: rgb(200, 220, 250);
+color: #005a9e;
+padding-left:18px;
+}</string>
          </property>
          <property name="text">
           <string>开始新对话</string>
@@ -202,10 +211,16 @@ background-color:#ffffff;
 color:#1a1a1a;
 border:none;
 outline:0;
+spacing:0px;
 }
 QListView::item{
-padding:15px;
-min-height:50px;
+padding:5px 15px;
+min-height:20px;
+border:none;
+margin:0px;
+}
+QListView::item:selected{
+background-color:transparent;
 }</string>
             </property>
             <property name="resizeMode">
@@ -309,6 +324,31 @@ padding:8px 16px;
               <property name="text">
                <string>深度思考</string>
               </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QComboBox" name="comboBox">
+              <property name="minimumSize">
+               <size>
+                <width>75</width>
+                <height>0</height>
+               </size>
+              </property>
+              <property name="font">
+               <font>
+                <pointsize>11</pointsize>
+               </font>
+              </property>
+              <item>
+               <property name="text">
+                <string>v4-flash</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>v4-pro</string>
+               </property>
+              </item>
              </widget>
             </item>
             <item>

@@ -4,13 +4,16 @@
 #include <QScrollBar>
 #include <QFileDialog>
 #include <QStandardItemModel>
+#include <QtConcurrent/QtConcurrent>
+#include <QWheelEvent>
 #include <deletedialog.h>
-
+#include <QCloseEvent>
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),now_index(-1)
     , ui(new Ui::MainWindow),deep_think(false),
-    all_data("回答内容\n"),have_data(false),
-    all_reasoning("思考内容\n"),have_reasoning(false),file_button_bool(false)
+    all_data(""),have_data(false),
+    all_reasoning(""),have_reasoning(false),file_button_bool(false)
+    ,model("v4-flash")
 {
     ui->setupUi(this);
     left_model = new QStringListModel(this);
@@ -43,12 +46,24 @@ MainWindow::MainWindow(QWidget *parent)
     QListView* list_view = qobject_cast<QListView*>(ui->listView);
     if(list_view){
         list_view->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+        list_view->verticalScrollBar()->setSingleStep(8);
     }
 
     QListView* list_view_2 = qobject_cast<QListView*>(ui->listView_2);
     if(list_view_2){
         list_view_2->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+        list_view_2->verticalScrollBar()->setSingleStep(12);
     }
+    MarkdownDelegate *md_dg = new MarkdownDelegate();
+    m_md_delegate = md_dg;
+    list_view_2->setItemDelegate(md_dg);
+    list_view_2->viewport()->installEventFilter(this);
+
+    m_batch_timer = new QTimer(this);
+    m_batch_timer->setInterval(40);
+    m_pending_new_data = false;
+    m_pending_new_reasoning = false;
+    connect(m_batch_timer, &QTimer::timeout, this, &MainWindow::flush_batch);
 
     sql_mgr->init_message();
 
@@ -81,7 +96,7 @@ void MainWindow::on_send_pushButton_clicked()
     }
     if(right_model[now_index]->rowCount() == 0)
     {
-        left_model->setData(left_model->index(now_index),message.left(30));
+        left_model->setData(left_model->index(now_index),QString("❓\n\n%1").arg(message.left(30)));
     }
     QJsonObject json_obj;
     json_obj["role"] = "user";
@@ -89,7 +104,7 @@ void MainWindow::on_send_pushButton_clicked()
     history[now_index].append(json_obj);
 
     right_model[now_index]->insertRow(right_model[now_index]->rowCount());
-    right_model[now_index]->setData(right_model[now_index]->index(right_model[now_index]->rowCount()-1),message);
+    right_model[now_index]->setData(right_model[now_index]->index(right_model[now_index]->rowCount()-1),QString("❓\n\n%1").arg(message));
 
     ui->textEdit->clear();
 
@@ -127,15 +142,17 @@ void MainWindow::on_deep_think_pushButton_clicked()
 void MainWindow::dispose_json()
 {
     QJsonObject json_obj;
-    json_obj["model"] = "deepseek-chat";
+    json_obj["model"] = QString("deepseek-%1").arg(model);
     json_obj["messages"] = history[now_index];
     json_obj["stream"] = true;
     json_obj["temperature"] = 0.7;
+    QJsonObject json_think;
+    json_think["type"] = "disabled";
     if(deep_think)
     {
-        json_obj["model"] = "deepseek-reasoner";
+        json_think["type"] = "enabled";
     }
-    
+    json_obj["thinking"] = json_think;
     // 传递文件给HttpMgr
     http_mgr->set_files(send_file);
     
@@ -148,17 +165,51 @@ void MainWindow::dispose_json()
 
 void MainWindow::closeEvent(QCloseEvent*event)
 {
-    Q_UNUSED(event)
-    //qDebug()<<"fuck";
-    sql_mgr->save_message(left_model,history);
+    event->accept();
+    QStringList titles;
+    for (int i = 0; i < left_model->rowCount(); i++)
+        titles << left_model->index(i).data().toString();
+    QtConcurrent::run([titles, this]() {
+        SQLMgr::save_message_async(titles, history);
+    });
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
     file_button->move(this->width()-30,this->height()-200);
+    QPoint btnPos = file_button->mapToGlobal(QPoint(0-fl_dlg->width(), 0-fl_dlg->height()));
+    fl_dlg->move(btnPos);
     QWidget::resizeEvent(event);
 }
 
+void MainWindow::moveEvent(QMoveEvent *event)
+{
+    QWidget::moveEvent(event);
+}
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *event)
+{
+    if (obj == ui->listView_2->viewport() && event->type() == QEvent::Wheel) {
+        QWheelEvent *we = static_cast<QWheelEvent*>(event);
+        if (we->modifiers() & Qt::ControlModifier) {
+            int newSize = m_md_delegate->fontSize();
+            if (we->angleDelta().y() > 0)
+                newSize += 2;
+            else
+                newSize -= 2;
+            m_md_delegate->setFontSize(newSize);
+            m_md_delegate->invalidateCache();
+            int oldPos = ui->listView_2->verticalScrollBar()->value();
+            QAbstractItemModel *m = ui->listView_2->model();
+            ui->listView_2->setModel(nullptr);
+            ui->listView_2->setModel(m);
+            ui->listView_2->verticalScrollBar()->setValue(oldPos);
+            we->accept();
+            return true;
+        }
+    }
+    return QMainWindow::eventFilter(obj, event);
+}
 
 void MainWindow::on_new_dlg_pushButton_clicked()
 {
@@ -198,40 +249,65 @@ void MainWindow::on_file_pushbutton_clicked()
 void MainWindow::slot_read_data(QString data)
 {
     all_data.append(data);
-    if(!have_data)
-    {
-        have_data = true;
+    m_pending_data.append(data);
+    if (!m_pending_new_data) {
+        m_pending_new_data = true;
         right_model[now_index]->insertRow(right_model[now_index]->rowCount());
-        right_model[now_index]->setData(right_model[now_index]->index(right_model[now_index]->rowCount()-1),data);
-        return;
+        right_model[now_index]->setData(
+            right_model[now_index]->index(right_model[now_index]->rowCount() - 1),
+            QString("🤖\n\n%1").arg(all_data));
     }
-    right_model[now_index]->setData(right_model[now_index]->index(right_model[now_index]->rowCount()-1),all_data);
+    if (!m_batch_timer->isActive())
+        m_batch_timer->start();
+}
 
+void MainWindow::flush_batch()
+{
+    if (m_pending_new_reasoning) {
+        right_model[now_index]->setData(
+            right_model[now_index]->index(right_model[now_index]->rowCount() - 1),
+            QString("💭\n\n%1").arg(all_reasoning));
+    }
+    if (m_pending_new_data) {
+        m_pending_data.clear();
+        right_model[now_index]->setData(
+            right_model[now_index]->index(right_model[now_index]->rowCount() - 1),
+            QString("🤖\n\n%1").arg(all_data));
+    }
+    m_batch_timer->stop();
 }
 
 void MainWindow::slot_read_reasoning(QString reasoning)
 {
     all_reasoning.append(reasoning);
-    if(!have_reasoning)
-    {
-        have_reasoning = true;
+    m_pending_reasoning.append(reasoning);
+    if (!m_pending_new_reasoning) {
+        m_pending_new_reasoning = true;
         right_model[now_index]->insertRow(right_model[now_index]->rowCount());
-        right_model[now_index]->setData(right_model[now_index]->index(right_model[now_index]->rowCount()-1),reasoning);
+        right_model[now_index]->setData(
+            right_model[now_index]->index(right_model[now_index]->rowCount() - 1),
+            QString("💭\n\n%1").arg(all_reasoning));
     }
-    right_model[now_index]->setData(right_model[now_index]->index(right_model[now_index]->rowCount()-1),all_reasoning);
-
+    if (!m_batch_timer->isActive())
+        m_batch_timer->start();
 }
 
 void MainWindow::slot_streamFinished()
 {
+    flush_batch();
+    m_md_delegate->invalidateCache();
     have_data = false;
     have_reasoning = false;
+    m_pending_new_data = false;
+    m_pending_new_reasoning = false;
+    m_pending_data.clear();
+    m_pending_reasoning.clear();
     QJsonObject json_obj;
     json_obj["role"] = "assistant";
     json_obj["content"] = all_data;
     history[now_index].append(json_obj);
-    all_data = "回答内容\n";
-    all_reasoning = "思考内容\n";
+    all_data = "";
+    all_reasoning = "";
     ui->send_pushButton->setEnabled(true);
     ui->send_pushButton->setStyleSheet("QPushButton{"
 "background-color:#007bff;"
@@ -255,9 +331,9 @@ void MainWindow::slot_streamFinished()
 void MainWindow::on_listView_2_clicked(const QModelIndex &index)
 {
     QString save_file = QFileDialog::getSaveFileName( this,
-                                                     tr("deepseek回答.txt"),
+                                                     tr("deepseek回答"),
                                                      QDir::homePath(),
-                                                     tr("文本文件 (*.txt);;所有文件 (*.*)") // 文件类型过滤器
+                                                     tr("文本文件 (*.md);;所有文件 (*.*)") // 文件类型过滤器
                                                      );
 
     QFile file(save_file);
@@ -321,12 +397,12 @@ void MainWindow::slot_init(const QStringList &title, const QStringList &message)
             {
                 stringlistmodel->insertRow(stringlistmodel->rowCount());
                 stringlistmodel->setData(stringlistmodel->index(stringlistmodel->rowCount()-1),
-                                         json_obj["content"].toString());
+                                         QString("❓\n\n%1").arg(json_obj["content"].toString()));
             }
             if(json_obj["role"].toString() == "assistant")
             {
                 QString data;
-                data.append(json_obj["content"].toString());
+                data.append(QString("🤖\n\n%1").arg(json_obj["content"].toString()));
                 stringlistmodel->insertRow(stringlistmodel->rowCount());
                 stringlistmodel->setData(stringlistmodel->index(stringlistmodel->rowCount()-1),
                                          data);
@@ -361,5 +437,11 @@ void MainWindow::on_add_file_pushButton_clicked()
 
     send_file.insert(std::make_pair(file_name,file_byte));
     fl_dlg->add_file(file_name);
+}
+
+
+void MainWindow::on_comboBox_currentTextChanged(const QString &arg1)
+{
+    model = arg1;
 }
 

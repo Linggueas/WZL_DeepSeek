@@ -8,7 +8,9 @@
 #include <QJsonObject>
 #include <httpmgr.h>
 #include <QPushButton>
+#include <QTimer>
 #include <filelistdialog.h>
+#include <markdowndelegate.h>
 #include <map>
 QT_BEGIN_NAMESPACE
 
@@ -38,6 +40,7 @@ private slots:
     void slot_read_data(QString data);
     void slot_read_reasoning(QString reasoning);
     void slot_streamFinished();
+    void flush_batch();
     void on_listView_2_clicked(const QModelIndex &index);
 
     void slot_delete();
@@ -48,6 +51,8 @@ private slots:
 
 
     void on_add_file_pushButton_clicked();
+
+    void on_comboBox_currentTextChanged(const QString &arg1);
 
 private:
     Ui::MainWindow *ui;
@@ -65,11 +70,21 @@ private:
 
     void closeEvent(QCloseEvent *event)override;
     void resizeEvent(QResizeEvent *event)override;
+    void moveEvent(QMoveEvent *event)override;
+    bool eventFilter(QObject *obj, QEvent *event)override;
+
     QString all_data;
     QString all_reasoning;
+    QString m_pending_data;
+    QString m_pending_reasoning;
+    QTimer *m_batch_timer;
+    bool m_pending_new_data;
+    bool m_pending_new_reasoning;
+    QString model;
     SQLMgr *sql_mgr;
     QPushButton*file_button;
     FileListDialog *fl_dlg;
+    MarkdownDelegate *m_md_delegate;
 
     bool file_button_bool;
 signals:
