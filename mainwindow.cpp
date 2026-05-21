@@ -4,7 +4,6 @@
 #include <QScrollBar>
 #include <QFileDialog>
 #include <QStandardItemModel>
-#include <QtConcurrent/QtConcurrent>
 #include <QWheelEvent>
 #include <deletedialog.h>
 #include <QCloseEvent>
@@ -107,7 +106,7 @@ void MainWindow::on_send_pushButton_clicked()
     right_model[now_index]->setData(right_model[now_index]->index(right_model[now_index]->rowCount()-1),QString("❓\n\n%1").arg(message));
 
     ui->textEdit->clear();
-
+    shift_id.insert(now_index);
     dispose_json();
 }
 
@@ -165,13 +164,12 @@ void MainWindow::dispose_json()
 
 void MainWindow::closeEvent(QCloseEvent*event)
 {
-    event->accept();
     QStringList titles;
     for (int i = 0; i < left_model->rowCount(); i++)
         titles << left_model->index(i).data().toString();
-    QtConcurrent::run([titles, this]() {
-        SQLMgr::save_message_async(titles, history);
-    });
+
+    sql_mgr->save_message(shift_id,titles,history);
+    event->accept();
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event)
@@ -228,6 +226,31 @@ void MainWindow::on_new_dlg_pushButton_clicked()
 void MainWindow::on_listView_clicked(const QModelIndex &index)
 {
     now_index = index.row();
+    if(right_model[now_index]->rowCount()==0)
+    {
+        QString message = sql_mgr->select_one_json(now_index);
+        QJsonDocument json_doc = QJsonDocument::fromJson(message.toUtf8());
+        QJsonArray json_arr = json_doc.array();
+        history[now_index] = json_arr;
+        for(int j = 0;j<json_arr.size();j++)
+        {
+            QJsonObject json_obj = json_arr[j].toObject();
+            if(json_obj["role"].toString() == "user")
+            {
+                right_model[now_index]->insertRow(right_model[now_index]->rowCount());
+                right_model[now_index]->setData(right_model[now_index]->index(right_model[now_index]->rowCount()-1),
+                                         QString("❓\n\n%1").arg(json_obj["content"].toString()));
+            }
+            if(json_obj["role"].toString() == "assistant")
+            {
+                QString data;
+                data.append(QString("🤖\n\n%1").arg(json_obj["content"].toString()));
+                right_model[now_index]->insertRow(right_model[now_index]->rowCount());
+                right_model[now_index]->setData(right_model[now_index]->index(right_model[now_index]->rowCount()-1),
+                                         data);
+            }
+        }
+    }
     ui->listView_2->setModel(right_model[now_index]);
 }
 
@@ -360,6 +383,12 @@ void MainWindow::slot_delete()
     dl_dlg->show();
     connect(dl_dlg,&DeleteDialog::sig_yes_delete,this,[this,dl_dlg](){
         dl_dlg->close();
+
+        if(shift_id.find(now_index) != shift_id.end())
+        {
+            shift_id.erase(now_index);
+        }
+
         left_model->removeRows(now_index,1);
         history.removeOne(history[now_index]);
         right_model[now_index]->deleteLater();
@@ -367,7 +396,6 @@ void MainWindow::slot_delete()
         ui->listView_2->setModel(nullptr);
         sql_mgr->delete_message(now_index);
         now_index = -1;
-
     });
     connect(dl_dlg,&DeleteDialog::sig_no_delete,this,[this,dl_dlg](){
         dl_dlg->close();
@@ -380,9 +408,23 @@ void MainWindow::slot_close_widget()
 
 }
 
-void MainWindow::slot_init(const QStringList &title, const QStringList &message)
+void MainWindow::slot_init(const QStringList &title)
 {
     for(int i = 0;i<title.size();i++)
+    {
+        left_model->insertRow(left_model->rowCount());
+        left_model->setData(left_model->index(left_model->rowCount()-1),title[i]);
+        QStringListModel* stringlistmodel = new QStringListModel(this);
+        right_model.push_back(stringlistmodel);
+        QJsonArray json_arr;
+        history.push_back(json_arr);
+    }
+    ui->listView->setEnabled(true);
+    ui->listView_2->setEnabled(true);
+
+
+
+    /*for(int i = 0;i<title.size();i++)
     {
         left_model->insertRow(left_model->rowCount());
         left_model->setData(left_model->index(left_model->rowCount()-1),title[i]);
@@ -412,7 +454,7 @@ void MainWindow::slot_init(const QStringList &title, const QStringList &message)
         right_model.push_back(stringlistmodel);
     }
     ui->listView->setEnabled(true);
-    ui->listView_2->setEnabled(true);
+    ui->listView_2->setEnabled(true);*/
 }
 
 

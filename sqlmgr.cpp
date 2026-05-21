@@ -16,64 +16,26 @@ SQLMgr::SQLMgr(QObject *parent)
 
 }
 
-void SQLMgr::save_message(const QStringList &titles, const QVector<QJsonArray> &history)
+void SQLMgr::save_message(const std::set<int> &shift_id, const QStringList &titles,const QVector<QJsonArray> &history)
 {
-    std::vector<int> id_vec;
-    QSqlQuery sql_que;
-    sql_que.prepare("select id from message_table");
-    sql_que.exec();
-    while(sql_que.next())
-    {
-        id_vec.push_back(sql_que.value(0).toInt());
-    }
-
-    sql_db.transaction();
-    for(int index = 0;index< history.size();index++)
+    for(const auto &id:shift_id)
     {
         QSqlQuery sql_que;
         sql_que.prepare("update message_table "
                         "set title = :title , message = :message "
                         "where id = :id");
-        sql_que.bindValue(":title",titles[index]);
-        sql_que.bindValue(":id",id_vec[index]);
-        sql_que.bindValue(":message",QString::fromUtf8(QJsonDocument(history[index]).toJson()));
+        sql_que.bindValue(":title",titles[id]);
+        sql_que.bindValue(":id",id);
+        sql_que.bindValue(":message",QString::fromUtf8(QJsonDocument(history[id]).toJson()));
+        qDebug()<<QString::fromUtf8(QJsonDocument(history[id]).toJson());
         sql_que.exec();
     }
-    sql_db.commit();
 }
 
-void SQLMgr::save_message_async(const QStringList &titles, const QVector<QJsonArray> &history)
+/*void SQLMgr::save_message_async(const QVector &id_vec, const QVector<QJsonArray> &history)
 {
-    QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", "async_save");
-    db.setDatabaseName("my.sqlite");
-    if (!db.open())
-        return;
 
-    std::vector<int> id_vec;
-    QSqlQuery sql_que(db);
-    sql_que.prepare("select id from message_table");
-    sql_que.exec();
-    while (sql_que.next())
-    {
-        id_vec.push_back(sql_que.value(0).toInt());
-    }
-
-    db.transaction();
-    for (int index = 0; index < history.size(); index++)
-    {
-        QSqlQuery sql_que(db);
-        sql_que.prepare("update message_table "
-                        "set title = :title , message = :message "
-                        "where id = :id");
-        sql_que.bindValue(":title", titles[index]);
-        sql_que.bindValue(":id", id_vec[index]);
-        sql_que.bindValue(":message", QString::fromUtf8(QJsonDocument(history[index]).toJson()));
-        sql_que.exec();
-    }
-    db.commit();
-    db.close();
-    QSqlDatabase::removeDatabase("async_save");
-}
+}*/
 
 void SQLMgr::insert_message()
 {
@@ -99,11 +61,10 @@ void SQLMgr::insert_message()
 void SQLMgr::init_message()
 {
     QSqlQuery sql_que;
-    sql_que.prepare("select title,message "
+    sql_que.prepare("select title "
                     "from message_table");
     sql_que.exec();
     QStringList title;
-    QStringList message;
     while(sql_que.next())
     {
         if(sql_que.value(0).isNull())
@@ -111,10 +72,8 @@ void SQLMgr::init_message()
             return;
         }
         title.push_back(sql_que.value(0).toString());
-        message.push_back(sql_que.value(1).toString());
     }
-    emit sig_init(title,message);
-
+    emit sig_init(title);
 }
 
 void SQLMgr::delete_message(int id)
@@ -133,6 +92,16 @@ void SQLMgr::delete_message(int id)
     sql_que1.bindValue(":id",id);
     sql_que1.exec();
     sql_db.commit();
+}
+
+QString SQLMgr::select_one_json(int id)
+{
+    QSqlQuery sql_que;
+    sql_que.prepare("select message from message_table where id = :id");
+    sql_que.bindValue(":id",id);
+    sql_que.exec();
+    sql_que.next();
+    return sql_que.value(0).toString();
 }
 
 

@@ -47,7 +47,7 @@ private slots:
 
     void slot_close_widget();
 
-    void slot_init(const QStringList& title,const QStringList& message);
+    void slot_init(const QStringList& title);
 
 
     void on_add_file_pushButton_clicked();
@@ -60,6 +60,7 @@ private:
     QVector<QStringListModel*>right_model;
     QVector<QJsonArray>history;
     std::map<QString,QByteArray> send_file;
+    std::set<int>shift_id;
 
     int now_index;
     bool deep_think;
