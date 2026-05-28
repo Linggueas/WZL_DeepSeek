@@ -7,6 +7,7 @@
 #include <QWheelEvent>
 #include <deletedialog.h>
 #include <QCloseEvent>
+#include <QTextEdit>
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),now_index(-1)
     , ui(new Ui::MainWindow),deep_think(false),
@@ -57,6 +58,8 @@ MainWindow::MainWindow(QWidget *parent)
     m_md_delegate = md_dg;
     list_view_2->setItemDelegate(md_dg);
     list_view_2->viewport()->installEventFilter(this);
+    list_view_2->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(list_view_2, &QListView::customContextMenuRequested, this, &MainWindow::slot_show_raw_text);
 
     m_batch_timer = new QTimer(this);
     m_batch_timer->setInterval(40);
@@ -406,6 +409,35 @@ void MainWindow::slot_delete()
 void MainWindow::slot_close_widget()
 {
 
+}
+
+void MainWindow::slot_show_raw_text(const QPoint &pos)
+{
+    QModelIndex index = ui->listView_2->indexAt(pos);
+    if (!index.isValid())
+        return;
+
+    QString rawText = ui->listView_2->model()->data(index).toString();
+    if (rawText.startsWith("🤖\n\n"))
+        rawText = rawText.mid(QStringLiteral("🤖\n\n").size());
+    else if (rawText.startsWith("❓\n\n"))
+        rawText = rawText.mid(QStringLiteral("❓\n\n").size());
+    else if (rawText.startsWith("💭\n\n"))
+        rawText = rawText.mid(QStringLiteral("💭\n\n").size());
+
+    QTextEdit *w = new QTextEdit(nullptr);
+    w->setAttribute(Qt::WA_DeleteOnClose);
+    w->setWindowTitle("查看原文");
+    w->setReadOnly(true);
+    QFont font = w->font();
+    font.setPointSize(16);
+    w->setFont(font);
+    w->setPlainText(rawText);
+    w->resize(500, 400);
+
+    QPoint globalPos = ui->listView_2->viewport()->mapToGlobal(pos);
+    w->move(globalPos);
+    w->show();
 }
 
 void MainWindow::slot_init(const QStringList &title)

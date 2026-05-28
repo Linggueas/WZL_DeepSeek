@@ -47,6 +47,8 @@ private slots:
 
     void slot_close_widget();
 
+    void slot_show_raw_text(const QPoint &pos);
+
     void slot_init(const QStringList& title);
 
 
