@@ -70,7 +70,7 @@ void HttpMgr::send_request(QJsonObject json)
     QNetworkRequest request;
     request.setUrl(QUrl("https://api.deepseek.com/v1/chat/completions"));
     request.setRawHeader("Content-Type", "application/json");
-    request.setRawHeader("Authorization", QString("Bearer %1").arg("sk-36d1b66aaf210fd").toUtf8());
+    request.setRawHeader("Authorization", QString("Bearer %1").arg("sk-c3d746c5dde74a3bab2bd8e6f45291c3").toUtf8());
 
     QNetworkReply *reply = net_mgr->post(request, QJsonDocument(processed_json).toJson());
     connect(reply,&QNetworkReply::readyRead,this,&HttpMgr::read_data);

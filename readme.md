@@ -78,7 +78,7 @@ make
 ./deepseek_client
 ```
 
-> **注意**: 项目中的 API Key 硬编码在 `httpmgr.cpp` 中（`sk-36d1b631abfd0fd`）（这个api是假的），建议在部署前更换为自己的 DeepSeek API Key。
+> **注意**: 项目中的 API Key 硬编码在 `httpmgr.cpp` 中（`sk-36d1b631abfd46f18e95ab66aaf210fd`），建议在部署前更换为自己的 DeepSeek API Key。
 
 ## 使用说明
 
@@ -95,4 +95,3 @@ make
 本项目基于 [MIT License](LICENSE) 开源。
 
 版权所有 (c) 2026 Linggueas
-

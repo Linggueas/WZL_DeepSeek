@@ -25,9 +25,27 @@ MainWindow::MainWindow(QWidget *parent)
     fl_dlg = new FileListDialog(this);
     fl_dlg->setWindowFlag(Qt::FramelessWindowHint);
 
+    toggle_question_btn = new QPushButton("?", this);
+    toggle_question_btn->resize(30, 30);
+    toggle_question_btn->setStyleSheet("QPushButton{background-color:#e0e0e0;color:#1a1a1a;border:none;border-radius:4px;font-size:14px;font-weight:bold;}QPushButton:hover{background-color:#0078d4;color:#ffffff;}");
+
     file_button = new QPushButton(this);
     file_button->resize(30, 30);
-    file_button->move(970,470);
+
+    toggle_question_btn->move(this->width()-70, this->height()-200);
+    file_button->move(this->width()-30, this->height()-200);
+
+    question_listView = new QListView(this);
+    question_listView->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    question_listView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    question_listView->verticalScrollBar()->setSingleStep(8);
+    question_listView->setFixedSize(250, 400);
+    question_listView->setStyleSheet("QListView{background-color:#ffffff;color:#1a1a1a;border:1px solid #d0d0d0;}QListView::item{padding:6px 8px;min-height:24px;}");
+    question_listView->hide();
+    question_visible = false;
+
+    connect(toggle_question_btn, &QPushButton::clicked, this, &MainWindow::on_toggle_question_clicked);
+    connect(question_listView, &QListView::clicked, this, &MainWindow::on_question_listView_clicked);
     file_button->setIcon(QIcon(":/新前缀/file.png"));
     file_button->setIconSize(file_button->size());
     file_button->show();
@@ -94,6 +112,9 @@ void MainWindow::on_send_pushButton_clicked()
         QStringListModel*sl_model = new QStringListModel(this);
         ui->listView_2->setModel(sl_model);
         right_model.push_back(sl_model);
+        QStringListModel*qm_model = new QStringListModel(this);
+        question_model.push_back(qm_model);
+        question_listView->setModel(qm_model);
         sql_mgr->insert_message();
     }
     if(right_model[now_index]->rowCount() == 0)
@@ -107,6 +128,9 @@ void MainWindow::on_send_pushButton_clicked()
 
     right_model[now_index]->insertRow(right_model[now_index]->rowCount());
     right_model[now_index]->setData(right_model[now_index]->index(right_model[now_index]->rowCount()-1),QString("❓\n\n%1").arg(message));
+
+    question_model[now_index]->insertRow(question_model[now_index]->rowCount());
+    question_model[now_index]->setData(question_model[now_index]->index(question_model[now_index]->rowCount()-1),message);
 
     ui->textEdit->clear();
     shift_id.insert(now_index);
@@ -177,7 +201,8 @@ void MainWindow::closeEvent(QCloseEvent*event)
 
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
-    file_button->move(this->width()-30,this->height()-200);
+    toggle_question_btn->move(this->width()-70, this->height()-200);
+    file_button->move(this->width()-30, this->height()-200);
     QPoint btnPos = file_button->mapToGlobal(QPoint(0-fl_dlg->width(), 0-fl_dlg->height()));
     fl_dlg->move(btnPos);
     QWidget::resizeEvent(event);
@@ -220,6 +245,9 @@ void MainWindow::on_new_dlg_pushButton_clicked()
     history.push_back(json_array);
     QStringListModel *stringmodel = new QStringListModel(this);
     right_model.push_back(stringmodel);
+    QStringListModel *qm_model = new QStringListModel(this);
+    question_model.push_back(qm_model);
+    question_listView->setModel(qm_model);
     ui->listView_2->setModel(right_model[left_model->rowCount()-1]);
     now_index = left_model->rowCount()-1;
     sql_mgr->insert_message();
@@ -229,6 +257,7 @@ void MainWindow::on_new_dlg_pushButton_clicked()
 void MainWindow::on_listView_clicked(const QModelIndex &index)
 {
     now_index = index.row();
+    question_listView->setModel(question_model[now_index]);
     if(right_model[now_index]->rowCount()==0)
     {
         QString message = sql_mgr->select_one_json(now_index);
@@ -243,6 +272,9 @@ void MainWindow::on_listView_clicked(const QModelIndex &index)
                 right_model[now_index]->insertRow(right_model[now_index]->rowCount());
                 right_model[now_index]->setData(right_model[now_index]->index(right_model[now_index]->rowCount()-1),
                                          QString("❓\n\n%1").arg(json_obj["content"].toString()));
+                question_model[now_index]->insertRow(question_model[now_index]->rowCount());
+                question_model[now_index]->setData(question_model[now_index]->index(question_model[now_index]->rowCount()-1),
+                                                   json_obj["content"].toString());
             }
             if(json_obj["role"].toString() == "assistant")
             {
@@ -396,7 +428,10 @@ void MainWindow::slot_delete()
         history.removeOne(history[now_index]);
         right_model[now_index]->deleteLater();
         right_model.removeOne(right_model[now_index]);
+        question_model[now_index]->deleteLater();
+        question_model.removeOne(question_model[now_index]);
         ui->listView_2->setModel(nullptr);
+        question_listView->setModel(nullptr);
         sql_mgr->delete_message(now_index);
         now_index = -1;
     });
@@ -409,6 +444,46 @@ void MainWindow::slot_delete()
 void MainWindow::slot_close_widget()
 {
 
+}
+
+void MainWindow::on_toggle_question_clicked()
+{
+    question_visible = !question_visible;
+    if (question_visible) {
+        if (question_model.size() > 0 && now_index >= 0)
+            question_listView->setModel(question_model[now_index]);
+        QPoint pos = toggle_question_btn->geometry().topLeft()
+                     + QPoint(-question_listView->width(), -question_listView->height());
+        question_listView->move(pos);
+        question_listView->raise();
+        question_listView->show();
+    } else {
+        question_listView->hide();
+    }
+}
+
+void MainWindow::on_question_listView_clicked(const QModelIndex &index)
+{
+    if (!index.isValid() || now_index < 0 || now_index >= right_model.size())
+        return;
+
+    int questionIdx = index.row();
+    int targetRow = -1;
+    int count = 0;
+    for (int i = 0; i < right_model[now_index]->rowCount(); i++) {
+        QString text = right_model[now_index]->data(right_model[now_index]->index(i)).toString();
+        if (text.startsWith("❓")) {
+            if (count == questionIdx) {
+                targetRow = i;
+                break;
+            }
+            count++;
+        }
+    }
+    if (targetRow >= 0) {
+        QModelIndex targetIndex = right_model[now_index]->index(targetRow);
+        ui->listView_2->scrollTo(targetIndex, QAbstractItemView::PositionAtTop);
+    }
 }
 
 void MainWindow::slot_show_raw_text(const QPoint &pos)
@@ -448,45 +523,13 @@ void MainWindow::slot_init(const QStringList &title)
         left_model->setData(left_model->index(left_model->rowCount()-1),title[i]);
         QStringListModel* stringlistmodel = new QStringListModel(this);
         right_model.push_back(stringlistmodel);
+        QStringListModel* qm_model = new QStringListModel(this);
+        question_model.push_back(qm_model);
         QJsonArray json_arr;
         history.push_back(json_arr);
     }
     ui->listView->setEnabled(true);
     ui->listView_2->setEnabled(true);
-
-
-
-    /*for(int i = 0;i<title.size();i++)
-    {
-        left_model->insertRow(left_model->rowCount());
-        left_model->setData(left_model->index(left_model->rowCount()-1),title[i]);
-        QStringListModel* stringlistmodel = new QStringListModel(this);
-        QJsonDocument json_doc = QJsonDocument::fromJson(message[i].toUtf8());
-        QJsonArray json_arr = json_doc.array();
-        history.push_back(json_arr);
-        for(int j = 0;j<json_arr.size();j++)
-        {
-            QJsonObject json_obj = json_arr[j].toObject();
-            if(json_obj["role"].toString() == "user")
-            {
-                stringlistmodel->insertRow(stringlistmodel->rowCount());
-                stringlistmodel->setData(stringlistmodel->index(stringlistmodel->rowCount()-1),
-                                         QString("❓\n\n%1").arg(json_obj["content"].toString()));
-            }
-            if(json_obj["role"].toString() == "assistant")
-            {
-                QString data;
-                data.append(QString("🤖\n\n%1").arg(json_obj["content"].toString()));
-                stringlistmodel->insertRow(stringlistmodel->rowCount());
-                stringlistmodel->setData(stringlistmodel->index(stringlistmodel->rowCount()-1),
-                                         data);
-
-            }
-        }
-        right_model.push_back(stringlistmodel);
-    }
-    ui->listView->setEnabled(true);
-    ui->listView_2->setEnabled(true);*/
 }
 
 

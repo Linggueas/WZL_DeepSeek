@@ -12,6 +12,7 @@
 #include <filelistdialog.h>
 #include <markdowndelegate.h>
 #include <map>
+#include <QListView>
 QT_BEGIN_NAMESPACE
 
 namespace Ui {
@@ -49,6 +50,10 @@ private slots:
 
     void slot_show_raw_text(const QPoint &pos);
 
+    void on_toggle_question_clicked();
+
+    void on_question_listView_clicked(const QModelIndex &index);
+
     void slot_init(const QStringList& title);
 
 
@@ -60,6 +65,7 @@ private:
     Ui::MainWindow *ui;
     QStringListModel*left_model;
     QVector<QStringListModel*>right_model;
+    QVector<QStringListModel*>question_model;
     QVector<QJsonArray>history;
     std::map<QString,QByteArray> send_file;
     std::set<int>shift_id;
@@ -88,6 +94,10 @@ private:
     QPushButton*file_button;
     FileListDialog *fl_dlg;
     MarkdownDelegate *m_md_delegate;
+
+    QListView *question_listView;
+    QPushButton *toggle_question_btn;
+    bool question_visible;
 
     bool file_button_bool;
 signals:

@@ -352,6 +352,13 @@ padding:8px 16px;
              </widget>
             </item>
             <item>
+             <widget class="QLineEdit" name="lineEdit">
+              <property name="echoMode">
+               <enum>QLineEdit::EchoMode::Password</enum>
+              </property>
+             </widget>
+            </item>
+            <item>
              <widget class="QPushButton" name="add_file_pushButton">
               <property name="maximumSize">
                <size>
