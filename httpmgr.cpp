@@ -1,5 +1,6 @@
 #include "httpmgr.h"
 #include "mainwindow.h"
+#include "QFile"
 HttpMgr::HttpMgr(QObject *parent)
     : QObject{parent}
 {
@@ -70,7 +71,7 @@ void HttpMgr::send_request(QJsonObject json)
     QNetworkRequest request;
     request.setUrl(QUrl("https://api.deepseek.com/v1/chat/completions"));
     request.setRawHeader("Content-Type", "application/json");
-    request.setRawHeader("Authorization", QString("Bearer %1").arg("").toUtf8());
+    request.setRawHeader("Authorization", QString("Bearer %1").arg(api_key).toUtf8());
 
     QNetworkReply *reply = net_mgr->post(request, QJsonDocument(processed_json).toJson());
     connect(reply,&QNetworkReply::readyRead,this,&HttpMgr::read_data);
@@ -133,4 +134,15 @@ void HttpMgr::reply_finish()
 
     reply->deleteLater();
 
+}
+
+void HttpMgr::get_api_key(QString api_key)
+{
+    this->api_key = api_key;
+    QFile file("./api.txt");
+    if(file.open(QIODevice::WriteOnly| QIODevice::Truncate))
+    {
+        file.write(api_key.toUtf8());
+    }
+    file.close();
 }

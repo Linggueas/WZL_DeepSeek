@@ -19,6 +19,7 @@ private:
     QNetworkAccessManager*net_mgr;
     std::map<QString, QByteArray> m_files;
     QJsonObject process_files_in_json(QJsonObject json);
+    QString api_key;
 signals:
     void return_data();
     void streamFinished();
@@ -28,6 +29,8 @@ public slots:
     void send_request(QJsonObject json);
     void read_data();
     void reply_finish();
+    void get_api_key(QString api_key);
+
 };
 
 #endif // HTTPMGR_H

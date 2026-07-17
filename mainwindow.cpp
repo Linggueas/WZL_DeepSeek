@@ -60,7 +60,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(fl_dlg,&FileListDialog::slot_delete,this,[this](QString file_name){
         send_file.erase(file_name);
     });
-
+    connect(this,&MainWindow::set_api_key,http_mgr,&HttpMgr::get_api_key);
     QListView* list_view = qobject_cast<QListView*>(ui->listView);
     if(list_view){
         list_view->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
@@ -86,6 +86,14 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_batch_timer, &QTimer::timeout, this, &MainWindow::flush_batch);
 
     sql_mgr->init_message();
+
+    QFile file("./api.txt");
+    if(file.open(QIODevice::ReadOnly))
+    {
+        QString api_key = QString(file.readAll());
+        ui->lineEdit->setText(api_key);
+    }
+    file.close();
 
 }
 
@@ -560,5 +568,11 @@ void MainWindow::on_add_file_pushButton_clicked()
 void MainWindow::on_comboBox_currentTextChanged(const QString &arg1)
 {
     model = arg1;
+}
+
+
+void MainWindow::on_lineEdit_textChanged(const QString &arg1)
+{
+    emit set_api_key(ui->lineEdit->text());
 }
 

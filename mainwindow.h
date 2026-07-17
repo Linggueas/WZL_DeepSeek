@@ -61,6 +61,8 @@ private slots:
 
     void on_comboBox_currentTextChanged(const QString &arg1);
 
+    void on_lineEdit_textChanged(const QString &arg1);
+
 private:
     Ui::MainWindow *ui;
     QStringListModel*left_model;
@@ -82,6 +84,8 @@ private:
     void moveEvent(QMoveEvent *event)override;
     bool eventFilter(QObject *obj, QEvent *event)override;
 
+
+    QString api_key;
     QString all_data;
     QString all_reasoning;
     QString m_pending_data;
@@ -102,6 +106,7 @@ private:
     bool file_button_bool;
 signals:
     void send_data(QJsonObject json);
+    void set_api_key(QString key);
 
 };
 #endif // MAINWINDOW_H
