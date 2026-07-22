@@ -13,6 +13,7 @@ SQLMgr::SQLMgr(QObject *parent)
         qDebug()<<"数据库连接失败";
         return;
     }
+    init_table();
 
 }
 
@@ -30,6 +31,17 @@ void SQLMgr::save_message(const std::set<int> &shift_id, const QStringList &titl
         qDebug()<<QString::fromUtf8(QJsonDocument(history[id]).toJson());
         sql_que.exec();
     }
+}
+
+void SQLMgr::init_table()
+{
+    QSqlQuery sql_que;
+    sql_que.prepare("create table IF NOT EXISTS message_table("
+                    "id integer,"
+                    "title varchar(99),"
+                    "message json"
+                    ")");
+    sql_que.exec();
 }
 
 /*void SQLMgr::save_message_async(const QVector &id_vec, const QVector<QJsonArray> &history)
