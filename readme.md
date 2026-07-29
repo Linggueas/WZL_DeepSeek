@@ -1,6 +1,7 @@
 # DeepSeek AI 智能对话客户端
 
 一款基于 Qt 6 和 DeepSeek API 构建的桌面端 AI 对话工具，支持多会话管理、流式输出、深度思考模式、文件上传与本地持久化存储。
+<img width="2004" height="1460" alt="image" src="https://github.com/user-attachments/assets/ab1040bf-ba3e-4721-85ca-67a9f551b23a" />
 
 ## 功能特性
 
