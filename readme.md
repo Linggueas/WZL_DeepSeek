@@ -79,7 +79,6 @@ make
 ./deepseek_client
 ```
 
-> **注意**: 项目中的 API Key 硬编码在 `httpmgr.cpp` 中（`sk-36d1b631abfd46f18e95ab66aaf210fd`），建议在部署前更换为自己的 DeepSeek API Key。
 
 ## 使用说明
 
